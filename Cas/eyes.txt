@@ -1,0 +1,3 @@
+for eye emissions, put an 80% black layer over them
+makes them darker but still emissive, so they don't become flashlights
+
