@@ -10,14 +10,20 @@ This script does the following:
 
 require("physBoneAPI") -- by ChloeSpacedOut
 
--- init config
+-----------------
+-- init config --
+-----------------
+
 local configFile = "CassetteFox"
 config:setName(configFile)
 
 -- interpret empty config to mean a fresh install
--- config should never be saved outside of running actions,
--- so this should ALWAYS return nil on remotes
 local freshInstall = next(config:load()) == nil
+
+
+------------------------------------
+-- set model rendering properties --
+------------------------------------
 
 -- hide vanilla model
 vanilla_model.PLAYER:setVisible(false)
@@ -34,6 +40,10 @@ local watchModel = models.model.root.RightArm.Watch
 local hatDodge = true
 local showWatch = true
 
+----------------------
+-- figura functions --
+----------------------
+
 --entity init event, used for when the avatar entity is loaded for the first time
 function events.entity_init()
 
@@ -42,7 +52,7 @@ end
 --tick event, called 20 times per second
 function events.tick()
 
-  if (hatDodge) then
+  if (hatDodge and vanilla_model.HELMET:getVisible()) then
     local headItem = player:getItem(6):getID()
     earsModel:setVisible(not (headItem:find("helmet") or headItem:find("cap") or headItem:find("hat")))
   else
@@ -63,18 +73,19 @@ function events.skull_render(delta, context)
 
 end
 
--- functions
-function showState(state)
-  return state and "SHOWING" or "HIDING"
-end
+------------
+-- sounds --
+------------
 
--- sounds
 function toggleSound(state)
   if (not player:isLoaded()) then return end
   sounds:playSound("entity.item.pickup", player:getPos(), 0.25, state and 1.5 or 0.5, false)
 end
 
--- pings and keypresses
+---------------------
+-- pings functions --
+---------------------
+
 function pings.actionSetHatDodge(state)
   hatDodge = state
   toggleSound(state)
@@ -85,36 +96,83 @@ function pings.actionSetWatch(state)
   toggleSound(state)
 end
 
--- set up action menu
+function pings.actionSetHelmet(state)
+  toggleSound(state)
+  vanilla_model.HELMET:setVisible(state)
+end
+
+function pings.actionSetArmour(state)
+  toggleSound(state)
+  vanilla_model.CHESTPLATE:setVisible(state)
+  vanilla_model.LEGGINGS:setVisible(state)
+  vanilla_model.BOOTS:setVisible(state)
+end
+
+----------------------------------------
+-- load config and send updated pings --
+----------------------------------------
+
+if (not freshInstall) then
+  -- remotes do not run pings
+  pings.actionSetHatDodge(config:load("hatDodge"))
+  pings.actionSetWatch(config:load("showWatch"))
+  pings.actionSetArmour(config:load("showArmour"))
+  pings.actionSetHelmet(config:load("showHelmet"))
+end
+
+------------------------
+-- set up action menu --
+------------------------
+
 local mainPage = action_wheel:newPage()
 action_wheel:setPage(mainPage)
 
+-- hide ears when wearing a helmet toggle
 local actionToggleHatDodge = mainPage:newAction()
-  :title("Toggle Hat Dodge")
+  :title("Enable Hat Dodge")
+  :toggleTitle("Disable Hat Dodge")
   :item("minecraft:iron_helmet")
   :hoverColor(0.8, 0.8, 0.3)
   :setOnToggle(function(state)
     pings.actionSetHatDodge(state)
-    print(showState(not state) .. " ears when a hat is worn.")
     config:save("hatDodge", state)
 
     hatDodge = state
-  end
-)
+  end)
+  :toggled(config:load("hatDodge"))
 
+-- vanilla helmet toggle
+local actionToggleHelmet = mainPage:newAction()
+  :title("Show Helmet")
+  :toggleTitle("Hide Helmet")
+  :item("minecraft:netherite_helmet")
+  :hoverColor(0.5, 0.5, 0.5)
+  :setOnToggle(function(state)
+    pings.actionSetHelmet(state)
+    config:save("showHelmet", state)
+  end)
+  :toggled(config:load("showHelmet"))
+
+-- vanilla armour toggle
+local actionToggleHelmet = mainPage:newAction()
+  :title("Show Armour")
+  :toggleTitle("Hide Armour")
+  :item("minecraft:netherite_chestplate")
+  :hoverColor(0.5, 0.5, 0.5)
+  :setOnToggle(function(state)
+    pings.actionSetArmour(state)
+    config:save("showArmour", state)
+  end)
+  :toggled(config:load("showArmour"))
+
+-- watch toggle
 local actionToggleWatch = mainPage:newAction()
-  :title("Toggle Watch")
+  :title("Show Watch")
+  :toggleTitle("Hide Watch")
   :item("minecraft:clock")
   :hoverColor(0.6, 0.9, 0.6)
   :setOnToggle(function(state)
     pings.actionSetWatch(state)
-    print("Watch " .. showState(state))
     config:save("showWatch", state)
-  end
-)
-
--- send pings from config
-if (not freshInstall) then
-  pings.actionSetHatDodge(config:load("hatDodge"))
-  pings.actionSetWatch(config:load("showWatch"))
-end
+  end)
+  :toggled(config:load("showWatch"))
